@@ -1,5 +1,5 @@
 ---
-title: "Understanding the Snitch Process List"
+title: "Snitch Process List: TCP Port Discovery and Display"
 sidebarTitle: "Process List"
 description: "See which processes are listening on TCP ports, how Snitch discovers them with lsof and ps, and how rows are filtered, sorted, and displayed."
 ---
@@ -36,7 +36,7 @@ Snitch runs three system commands in sequence each time the list is refreshed, c
     /usr/sbin/lsof -a -d cwd -Fn -p <pidlist>
     ```
 
-    The `-d cwd` flag restricts output to the `cwd` file-descriptor entry. If this call fails for any process (for example, because the process is sandboxed), that process's `cwd` is recorded as `"Unavailable"`.
+    The `-d cwd` flag restricts output to the `cwd` file-descriptor entry. If the call fails entirely, or if a specific process is absent from the output (for example, because the process is sandboxed), that process's `cwd` is recorded as `"Unavailable"`.
   </Step>
 </Steps>
 
@@ -74,7 +74,7 @@ Every row in the process list surfaces four pieces of information:
 
 For example, a Node.js server running in `~/projects/my-api` and listening on port `3000` appears as:
 
-```
+```text
 my-api
 PID 8421 • Port 3000
 ```
@@ -87,11 +87,11 @@ The process list stays current automatically; you rarely need to intervene.
 
 <CardGroup cols={2}>
   <Card title="Auto-refresh (renderer)" icon="rotate">
-    The renderer calls `listProcesses()` on a `setInterval` of **2 500 ms** (`2.5 seconds`). Every cycle re-runs all three system commands and re-renders the list.
+    The renderer calls `refresh()` on a `setInterval` of **2 500 ms** (`2.5 seconds`). Every cycle re-runs all three system commands and re-renders the list.
   </Card>
   <Card title="Tray badge poll (main process)" icon="bell">
     The tray icon count updates on a separate timer set to **`TRAY_POLL_MS = 4 000 ms`** (`4 seconds`) in the main process, keeping the menu bar badge roughly in sync.
   </Card>
 </CardGroup>
 
-Clicking the **refresh button** in the popup header triggers an immediate call to `listProcesses()` outside the regular timer cycle, useful when you want an instant snapshot after starting or stopping a server.
+Clicking the **refresh button** in the popup header triggers an immediate call to `refresh()` outside the regular timer cycle, useful when you want an instant snapshot after starting or stopping a server.

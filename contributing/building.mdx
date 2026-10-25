@@ -1,5 +1,5 @@
 ---
-title: "Build and Distribute Snitch for macOS"
+title: "Build and Distribute Snitch for macOS with electron-builder"
 sidebarTitle: "Building"
 description: "Build a distributable DMG for Apple Silicon, generate the app icon with sips and iconutil, and copy Snitch.app straight to your Desktop."
 ---
@@ -49,11 +49,11 @@ npm run dist:mac:arm64
   </Step>
 
   <Step title="What the script does">
-    `scripts/install-desktop.sh` calls `npm run pack:mac:arm64` to produce an unpacked app directory, then uses `find` to locate `Snitch.app` inside `dist/`, removes any previous copy at `~/Desktop/Snitch.app`, and copies the freshly built app there with `cp -R`.
+    `scripts/install-desktop.sh` calls `npm run pack:mac` (which in turn runs `npm run pack:mac:arm64`) to produce an unpacked app directory, then uses `find` with `-maxdepth 2` to locate `Snitch.app` inside `dist/`, removes any previous copy at `~/Desktop/Snitch.app`, and copies the freshly built app there with `cp -R`.
   </Step>
 
   <Step title="Launch from the Desktop">
-    Double-click **Snitch.app** on your Desktop to launch the app. It will appear in the menu bar just as a production install would, but with auto-updates disabled because the binary is not packaged through the signed release pipeline (`app.isPackaged` is `false`).
+    Double-click **Snitch.app** on your Desktop to launch the app. It will appear in the menu bar just as a production install would. Because the binary is packed by `electron-builder`, `app.isPackaged` is `true` and the auto-updater will activate — however, without a valid code-signing identity and GitHub release, update checks will fail silently.
   </Step>
 </Steps>
 

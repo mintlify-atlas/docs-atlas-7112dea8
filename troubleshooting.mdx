@@ -1,5 +1,5 @@
 ---
-title: "Troubleshoot Common Snitch Issues"
+title: "Snitch Troubleshooting: Fixing Common macOS App Issues"
 sidebarTitle: "Troubleshooting"
 description: "Solutions for common Snitch problems: Gatekeeper blocks, an empty process list, failed update checks, unkillable processes, and a missing menu bar icon."
 ---
@@ -36,7 +36,7 @@ Snitch is designed to be simple and self-contained, but a handful of issues come
   1. Confirm your server is listening on TCP, not UDP, by running the same command Snitch uses internally:
 
   ```bash
-  lsof -nP -iTCP -sTCP:LISTEN
+  /usr/sbin/lsof -nP -iTCP -sTCP:LISTEN -Fpcn
   ```
 
   If your process appears in that output, Snitch should show it. If it does not appear in Snitch's list, check whether its `cwd` column resolves to `/`:
