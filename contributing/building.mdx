@@ -1,0 +1,92 @@
+---
+title: "Build and Distribute Snitch for macOS"
+sidebarTitle: "Building"
+description: "Build a distributable DMG for Apple Silicon, generate the app icon with sips and iconutil, and copy Snitch.app straight to your Desktop."
+---
+
+This page covers building the Snitch distributable for macOS using `electron-builder`. You will find the available build scripts, how to produce a release DMG, a shortcut for quickly installing to the Desktop, details on icon generation, and the `electron-builder` configuration that controls artifact naming and auto-update publishing.
+
+## Available build scripts
+
+All scripts are defined in `package.json` and run from the repo root.
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| `npm run dist:mac:arm64` | `npm run icon:mac && electron-builder --mac dmg zip --arm64` | Builds a DMG + ZIP for Apple Silicon (arm64). Output lands in `dist/`. |
+| `npm run pack:mac:arm64` | `npm run icon:mac && electron-builder --mac dir --arm64` | Produces an unpacked `.app` directory — faster than a full DMG, useful for quick local testing. |
+| `npm run desktop:install` | `./scripts/install-desktop.sh` | Builds a packed `.app` and copies it to `~/Desktop/Snitch.app`. |
+| `npm run icon:mac` | `./scripts/build-icon.sh` | Regenerates `assets/icon.icns` from `assets/icon.png` using `sips` and `iconutil`. |
+
+<Note>
+  Every build script that produces a binary runs `npm run icon:mac` first, so `assets/icon.icns` is always up to date before `electron-builder` packages the app.
+</Note>
+
+## Building the DMG
+
+Run the following command to produce a release-ready distributable:
+
+```bash
+npm run dist:mac:arm64
+```
+
+`electron-builder` targets the `dmg` and `zip` formats for the `arm64` (Apple Silicon) architecture. Three files are written to `dist/`:
+
+- **`Snitch-apple-silicon.dmg`** — drag-and-drop installer for end users.
+- **`Snitch-apple-silicon.zip`** — zip archive consumed by `electron-updater` for delta updates.
+- **`latest-mac.yml`** — release manifest that `electron-updater` fetches from GitHub Releases when checking for a newer version.
+
+<Tip>
+  If you only need a local build to test the packaged app without producing a DMG, use `npm run pack:mac:arm64` instead. It skips the DMG and ZIP steps and finishes significantly faster.
+</Tip>
+
+## Quick install to Desktop
+
+<Steps>
+  <Step title="Run the install script">
+    ```bash
+    npm run desktop:install
+    ```
+  </Step>
+
+  <Step title="What the script does">
+    `scripts/install-desktop.sh` calls `npm run pack:mac:arm64` to produce an unpacked app directory, then uses `find` to locate `Snitch.app` inside `dist/`, removes any previous copy at `~/Desktop/Snitch.app`, and copies the freshly built app there with `cp -R`.
+  </Step>
+
+  <Step title="Launch from the Desktop">
+    Double-click **Snitch.app** on your Desktop to launch the app. It will appear in the menu bar just as a production install would, but with auto-updates disabled because the binary is not packaged through the signed release pipeline (`app.isPackaged` is `false`).
+  </Step>
+</Steps>
+
+## Icon generation
+
+The app icon source is `assets/icon.png` (with a fallback to `assets/icon.svg.png` if `icon.png` is not found). Running:
+
+```bash
+npm run icon:mac
+```
+
+…executes `scripts/build-icon.sh`, which does the following:
+
+1. Creates a temporary `assets/icon.iconset/` directory.
+2. Uses macOS **`sips`** to resize `icon.png` into all ten required sizes (16 × 16 through 1024 × 1024, covering both 1× and 2× variants).
+3. Passes the iconset directory to macOS **`iconutil`**, which compiles it into `assets/icon.icns`.
+4. Removes the temporary `icon.iconset/` directory.
+
+Run this script any time you update `assets/icon.png` to keep `assets/icon.icns` in sync before the next build.
+
+<Note>
+  `sips` and `iconutil` are macOS-only command-line tools that ship with Xcode Command Line Tools. This script will not run on Linux or Windows.
+</Note>
+
+## electron-builder configuration
+
+The `build` section of `package.json` drives how `electron-builder` packages and names the output:
+
+| Key | Value | Notes |
+|-----|-------|-------|
+| `appId` | `com.maxxdwh.snitch` | Unique bundle identifier for macOS. |
+| `mac.category` | `public.app-category.developer-tools` | App Store category (used even for non-App Store builds). |
+| `mac.artifactName` | `Snitch-apple-silicon.${ext}` | Controls the filename for all macOS artifacts. |
+| `publish.provider` | `github` | Tells `electron-updater` where to fetch release manifests. Owner: `maxxdwh`, repo: `snitch`. |
+
+The DMG window is configured at 660 × 400 pixels with an icon size of 128 and a custom background image sourced from `assets/dmg-background.png`. The layout places the app icon on the left (x: 180, y: 185) and an `/Applications` symlink on the right (x: 480, y: 185) for the standard drag-to-install experience.

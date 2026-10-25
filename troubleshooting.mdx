@@ -1,0 +1,117 @@
+---
+title: "Troubleshoot Common Snitch Issues"
+sidebarTitle: "Troubleshooting"
+description: "Solutions for common Snitch problems: Gatekeeper blocks, an empty process list, failed update checks, unkillable processes, and a missing menu bar icon."
+---
+
+Snitch is designed to be simple and self-contained, but a handful of issues come up regularly based on how macOS handles unsigned apps, sandboxed processes, and crowded menu bars. This page covers each one and how to resolve it.
+
+## Common issues
+
+<Accordion title="macOS blocks the app on first launch (app is damaged or unidentified developer)">
+  **Cause:** Snitch is not notarised by Apple, so Gatekeeper quarantines it on first launch.
+
+  **Fix:**
+
+  <Steps>
+    <Step title="Open System Settings">
+      Go to **System Settings → Privacy & Security** and scroll down until you see a message about Snitch being blocked.
+    </Step>
+    <Step title="Click Open Anyway">
+      Click **Open Anyway** next to the Snitch entry. macOS will ask you to confirm once more — click **Open**.
+    </Step>
+    <Step title="Alternative: right-click to open">
+      If you don't see the prompt in System Settings, right-click `Snitch.app` in Finder and choose **Open** from the context menu. A dialog will offer an **Open** button that bypasses Gatekeeper for this app.
+    </Step>
+  </Steps>
+
+  You only need to do this once. Subsequent launches open normally.
+</Accordion>
+
+<Accordion title="The process list is empty even though servers are running">
+  **Cause:** Snitch queries `lsof` for **TCP LISTEN** sockets only — UDP listeners are not shown. Additionally, any process whose current working directory resolves to `/` (the filesystem root) is filtered out as system noise by the `shouldIncludeRow` function in `main.js`.
+
+  **Fix:**
+
+  1. Confirm your server is listening on TCP, not UDP, by running the same command Snitch uses internally:
+
+  ```bash
+  lsof -nP -iTCP -sTCP:LISTEN
+  ```
+
+  If your process appears in that output, Snitch should show it. If it does not appear in Snitch's list, check whether its `cwd` column resolves to `/`:
+
+  ```bash
+  lsof -a -d cwd -p <pid>
+  ```
+
+  2. If the `cwd` is `/`, Snitch intentionally hides the row. This filter exists to suppress low-level system daemons and keep the list focused on project-level processes.
+</Accordion>
+
+<Accordion title="A process shows Unavailable as its folder name">
+  **Cause:** `lsof` could not read the working directory for that process — common with sandboxed apps, system agents, and processes owned by another user. Snitch sets the `cwd` field to the string `"Unavailable"` when the `lsof -d cwd` call fails or returns nothing for a given PID.
+
+  The row is **not hidden** (only rows with `cwd === '/'` are filtered). Snitch still displays the PID, command name, and port list, and the kill button remains active. The row's display title falls back to the process command name or its full argument string.
+
+  No fix is required — this is expected behaviour for processes Snitch cannot fully inspect.
+</Accordion>
+
+<Accordion title="Clicking a row doesn't open the browser">
+  **Cause:** Snitch only opens `http://localhost:<port>` when it can extract a numeric port from the process's endpoint list. If `extractPort()` returns an empty string for every endpoint in the row, the row is treated as non-clickable.
+
+  **Fix:**
+
+  Check the port shown in the row. If the port field is blank, inspect the raw endpoints with:
+
+  ```bash
+  lsof -nP -iTCP -sTCP:LISTEN -p <pid>
+  ```
+
+  Look at the **NAME** column. Snitch parses the port with the regex `/:(\d+)$/` — if the endpoint format doesn't end with `:<number>`, no port is extracted and no URL is built.
+</Accordion>
+
+<Accordion title="Kill button has no effect">
+  **Cause:** Snitch sends `SIGTERM` first, then falls back to `SIGKILL` if the process is still present. Both signals will fail with a permission error (`EPERM`) if the target process is owned by `root` or a different user, because Snitch itself runs without elevated privileges.
+
+  **Fix:**
+
+  Open Terminal and terminate the process manually with `sudo`:
+
+  ```bash
+  sudo kill <pid>
+  ```
+
+  If the process ignores `SIGTERM`, force-terminate it:
+
+  ```bash
+  sudo kill -9 <pid>
+  ```
+
+  Replace `<pid>` with the PID shown in the Snitch row.
+</Accordion>
+
+<Accordion title="Check for Updates shows an error">
+  **Cause:** Snitch's update check reaches out to GitHub Releases. If the request fails — due to no internet connection, a firewall rule, or a GitHub API rate limit — `autoUpdater` throws an error and Snitch shows an **Update Check Failed** dialog with the underlying error message.
+
+  **Fix:**
+
+  1. Verify your internet connection is active.
+  2. Try opening [github.com/maxxdwh/snitch/releases](https://github.com/maxxdwh/snitch/releases) in a browser to confirm GitHub is reachable.
+  3. Click **Check for Updates…** again from the menu bar context menu.
+
+  Automatic background checks (every 6 hours) will resume on their own once connectivity is restored — no restart is needed.
+</Accordion>
+
+<Accordion title="Snitch doesn't appear in the menu bar after launch">
+  **Cause:** Snitch hides itself from the Dock intentionally (`app.dock.hide()` runs at startup on macOS), so there is no Dock icon to confirm it launched. If your menu bar is full, macOS may hide overflow icons — Snitch's 🐀 icon could be behind the notch or truncated by other menu bar items.
+
+  **Fix:**
+
+  1. Check Activity Monitor or run `pgrep -x Snitch` in Terminal to confirm the process is actually running.
+  2. If it is running but the icon is hidden, try quitting other menu bar apps to free space, or use a menu bar management utility such as [Bartender](https://www.macbartender.com/) or [Ice](https://github.com/jordanbaird/Ice) to surface hidden items.
+  3. If the process is not running, relaunch Snitch from **Applications**.
+</Accordion>
+
+<Tip>
+  If you run into an issue not covered here, open an issue at [github.com/maxxdwh/snitch/issues](https://github.com/maxxdwh/snitch/issues) — all feedback is welcome.
+</Tip>

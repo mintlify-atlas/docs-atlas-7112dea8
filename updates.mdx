@@ -1,0 +1,56 @@
+---
+title: "Automatic Updates in Snitch"
+sidebarTitle: "Updates"
+description: "Snitch uses electron-updater to silently download new releases from GitHub in the background and prompt you to restart when a new version is ready."
+---
+
+Snitch uses `electron-updater` to keep itself current without requiring you to visit GitHub manually. When a new release is published, Snitch downloads it in the background and shows a one-click prompt to restart and apply the update.
+
+## How updates work
+
+Updates are only active when Snitch is running as a packaged application — the `.app` bundle you installed from GitHub Releases. Running from source with `npm start` calls `app.isPackaged` which returns `false`, so `setupAutoUpdates()` returns immediately and no update logic runs.
+
+When Snitch starts as a packaged app it applies two key settings before connecting to GitHub:
+
+- **`autoUpdater.autoDownload = true`** — as soon as a newer release is detected, the installer is downloaded in the background. No dialog appears during the download.
+- **`autoUpdater.autoInstallOnAppQuit = true`** — if you dismiss the restart prompt, the update is applied automatically the next time you quit Snitch normally.
+
+After applying those settings, Snitch runs an initial update check at startup, then schedules a recurring check using the constant defined in `main.js`:
+
+```js
+const UPDATE_CHECK_MS = 6 * 60 * 60 * 1000; // 6 hours
+```
+
+The interval timer resets every time Snitch launches, so the schedule is: **immediately at startup**, then **every 6 hours** while the app remains open.
+
+## Manual update check
+
+You can trigger an update check at any time without waiting for the next automatic interval.
+
+<Steps>
+  <Step title="Right-click the menu bar icon">
+    Right-click the 🐀 icon in the macOS menu bar to open the context menu. You can also Control-click it.
+  </Step>
+  <Step title="Choose Check for Updates">
+    Click the **Check for Updates…** menu item. Snitch marks the check as manual so it knows whether to show feedback dialogs.
+  </Step>
+  <Step title="Read the result dialog">
+    One of two dialogs will appear:
+
+    - **Already current:** `Snitch <version> is up to date.` — no action needed.
+    - **Update found:** `Downloading Snitch <new version> now.` — the download starts in the background; you will be prompted to restart when it finishes.
+  </Step>
+</Steps>
+
+## Installing an update
+
+When `electron-updater` fires the `update-downloaded` event, Snitch immediately shows a dialog regardless of whether the check was manual or automatic:
+
+| Button | Behaviour |
+|---|---|
+| **Restart & Install** | Sets the internal `isQuitting` flag, calls `autoUpdater.quitAndInstall()`, and relaunches Snitch with the new version. |
+| **Later** | Dismisses the dialog. Because `autoInstallOnAppQuit` is `true`, the update is applied the next time you quit Snitch from the **Quit** menu item. |
+
+<Note>
+  Updates are only available for the packaged app downloaded from GitHub Releases. Running from source with `npm start` will never trigger an update check — the `checkForUpdates` function exits early when `app.isPackaged` is `false`.
+</Note>

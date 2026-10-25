@@ -1,0 +1,77 @@
+---
+title: "Set Up the Snitch Development Environment"
+sidebarTitle: "Dev Setup"
+description: "Clone the Snitch repo, install Node dependencies, run the app in dev mode, and understand the project structure and architecture."
+---
+
+This page walks through everything you need to get a local development environment running for Snitch — the macOS menu bar utility that surfaces listening processes by folder, PID, and port.
+
+## Prerequisites
+
+Before you begin, make sure you have the following installed and available:
+
+- **Node.js** (LTS release recommended) — [nodejs.org](https://nodejs.org)
+- **npm** — ships with Node.js; no separate install needed
+- **macOS** — Snitch is macOS-only. The process discovery logic calls two macOS system binaries directly: `/usr/sbin/lsof` and `/bin/ps`. It will not run on Linux or Windows.
+
+## Clone and install
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/maxxdwh/snitch.git
+    cd snitch
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+
+    This installs Electron, `electron-builder`, and `electron-updater` as defined in `package.json`.
+  </Step>
+
+  <Step title="Start in development mode">
+    ```bash
+    npm start
+    ```
+
+    This runs `electron .`, which boots Snitch directly from source. The app appears in your macOS menu bar immediately.
+
+    <Note>
+      Auto-updates are disabled in development mode. The auto-updater checks `app.isPackaged` before running, and that flag is `false` when Electron is launched via `npm start`. Update checks only activate in a signed, packaged build.
+    </Note>
+  </Step>
+</Steps>
+
+## Project structure
+
+- **`src/main.js`** — Electron main process. Owns the tray icon, popup window, IPC handlers, process discovery logic (via `lsof` and `ps`), and the auto-updater lifecycle.
+- **`src/preload.js`** — Context bridge. Exposes `window.snitchApi` to the renderer with four methods: `listProcesses`, `killProcess`, `openUrl`, and `setWindowHeight`.
+- **`src/renderer/index.html`** — The popup's HTML shell. Defines the header, process list container, and status bar.
+- **`src/renderer/renderer.js`** — Popup UI logic. Renders process rows, handles row clicks (open localhost URL) and kill-button clicks, drives auto-refresh every 2.5 seconds, and syncs the window height to content.
+- **`src/renderer/styles.css`** — Popup styles. Dark theme (`#121212` background) with compact, click-target-friendly row layout.
+- **`assets/`** — App icon files (`.icns`, `.png`, `.svg`). The `.icns` file is generated from `icon.png` by the `npm run icon:mac` script.
+- **`scripts/`** — Helper shell scripts: `build-icon.sh` generates the macOS icon set, and `install-desktop.sh` builds and copies `Snitch.app` to `~/Desktop`.
+- **`docs/`** — Static landing page for the Snitch project website. This is a separate site from the Mintlify docs you are reading now.
+
+## Architecture overview
+
+Snitch uses the standard Electron main/renderer process split with security defaults enforced:
+
+- `contextIsolation: true` and `nodeIntegration: false` are set on every `BrowserWindow`. The renderer has no direct access to Node.js APIs.
+- All communication between the renderer and main process goes through the `snitchApi` preload bridge. The four IPC channels it maps to are:
+
+  | `snitchApi` method | IPC channel |
+  |--------------------|-------------|
+  | `listProcesses()` | `process:list` |
+  | `killProcess(pid)` | `process:kill` |
+  | `openUrl(url)` | `url:open` |
+  | `setWindowHeight(height)` | `window:set-height` |
+
+- Process discovery in the main process uses **no third-party libraries**. `/usr/sbin/lsof` is called with `-iTCP -sTCP:LISTEN` flags to find listening sockets, and `/bin/ps` is called to resolve command names and arguments for those PIDs. A second `lsof` call with `-d cwd` resolves each process's working directory, which becomes the folder title shown in the popup.
+
+<Note>
+  Changes to `src/preload.js` require a full Electron restart to take effect. Preload scripts are loaded once at window creation and are **not** hot-reloaded. Stop the process with <kbd>Ctrl</kbd>+<kbd>C</kbd> and run `npm start` again after editing `preload.js`.
+</Note>

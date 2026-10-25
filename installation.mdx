@@ -1,0 +1,39 @@
+---
+title: "Install Snitch on macOS"
+sidebarTitle: "Installation"
+description: "Download the Apple Silicon DMG from GitHub Releases, drag Snitch into Applications, and handle the Gatekeeper prompt to get up and running in minutes."
+---
+
+This page covers installing the pre-built Snitch binary on macOS. The current release ships as a single DMG targeting **Apple Silicon (ARM64)** Macs. No runtime dependencies are needed — `lsof` and `ps` are already present on every standard macOS installation.
+
+<Steps>
+  <Step title="Download the DMG">
+    Grab the latest release directly from GitHub Releases:
+
+    ```text
+    https://github.com/maxxdwh/snitch/releases/latest/download/Snitch-apple-silicon.dmg
+    ```
+
+    You can also browse all releases at [github.com/maxxdwh/snitch/releases](https://github.com/maxxdwh/snitch/releases) if you need a specific version.
+  </Step>
+
+  <Step title="Open the DMG">
+    Double-click the downloaded `Snitch-apple-silicon.dmg` file. A Finder window opens showing the `Snitch.app` icon alongside a shortcut to your `Applications` folder.
+  </Step>
+
+  <Step title="Drag Snitch.app into Applications">
+    Drag `Snitch.app` onto the `Applications` folder shortcut in the DMG window. macOS copies the app to `/Applications`. Once the copy finishes, eject the DMG.
+  </Step>
+
+  <Step title="Launch Snitch from Applications">
+    Open **Finder → Applications** and double-click `Snitch`. The app hides itself from the Dock immediately on launch and instead appears as a `🐀 N` badge in your menu bar. It is now running and monitoring local listening processes.
+  </Step>
+</Steps>
+
+<Note>
+  **Gatekeeper may block Snitch on first launch.** Because the app is not notarised through an Apple Developer account, macOS will show a warning that the developer cannot be verified. To proceed, open **System Settings → Privacy & Security**, scroll down to the message about Snitch, and click **Open Anyway**. You will be asked to confirm once more; after that, macOS remembers your choice and will not prompt again.
+</Note>
+
+## Alternative: run from source
+
+If you prefer to build and run Snitch yourself — or want to contribute — see the [Development Setup](/contributing/development-setup) page. Running from source requires Node.js and skips Gatekeeper entirely because the app is launched through Electron directly.

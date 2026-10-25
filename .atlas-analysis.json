@@ -1,0 +1,62 @@
+{
+  "projectType": "general",
+  "projectName": "Snitch",
+  "projectDescription": "A tiny macOS menu bar app built with Electron that shows local listening processes by folder, PID, and port — letting you open localhost or kill services in one click.",
+  "theme": "luma",
+  "primaryColor": "#d9534f",
+  "lightColor": "#f3f3f3",
+  "darkColor": "#111111",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get Started",
+        "pages": [
+          "introduction",
+          "installation",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Using Snitch",
+        "pages": [
+          "using-snitch/process-list",
+          "using-snitch/open-localhost",
+          "using-snitch/kill-process"
+        ]
+      },
+      {
+        "group": "Updates & Maintenance",
+        "pages": [
+          "updates",
+          "troubleshooting"
+        ]
+      },
+      {
+        "group": "Contributing",
+        "pages": [
+          "contributing/development-setup",
+          "contributing/building"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Lives in the macOS menu bar showing a live process count (🐀 N)",
+    "Lists local TCP LISTEN processes with PID, working-directory folder name, and ports",
+    "Prioritises processes tied to real project folders over system processes",
+    "One-click to open http://localhost:<port> in the default browser",
+    "One-click kill with SIGTERM → SIGKILL fallback",
+    "Auto-refresh every 2.5 seconds in the popup and every 4 seconds in the tray count",
+    "Automatic background update checks via GitHub Releases (electron-updater)",
+    "Manual update check from the right-click tray menu"
+  ],
+  "publicApiSurface": [
+    "snitchApi.listProcesses() — IPC process:list — returns array of {pid, comm, args, cwd, endpoints, ports}",
+    "snitchApi.killProcess(pid) — IPC process:kill — sends SIGTERM then SIGKILL fallback",
+    "snitchApi.openUrl(url) — IPC url:open — opens a validated http://localhost:<port> URL externally",
+    "snitchApi.setWindowHeight(height) — IPC window:set-height — resizes the popup window within min/max bounds",
+    "npm start — launch in development mode with electron .",
+    "npm run dist:mac:arm64 — build distributable DMG + ZIP for Apple Silicon",
+    "npm run desktop:install — build and copy Snitch.app to ~/Desktop"
+  ]
+}

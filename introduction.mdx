@@ -1,0 +1,62 @@
+---
+title: "Snitch: macOS Menu Bar Process Monitor"
+sidebarTitle: "Introduction"
+description: "Snitch is a macOS menu bar app that uses lsof and ps to surface TCP LISTEN processes — open localhost or kill any service in one click."
+---
+
+Snitch is a lightweight Electron app that lives entirely in your macOS menu bar. It runs `lsof` and `ps` in the background to discover every process currently listening on a local TCP port, then surfaces each one with its folder name, PID, and port — so you can open it in a browser or kill it without ever touching a terminal.
+
+## How it works
+
+Every time Snitch refreshes the process list it executes a short pipeline of system commands and merges the results into a single set of rows:
+
+1. **Discover listeners** — `lsof -nP -iTCP -sTCP:LISTEN -Fpcn` returns a machine-readable list of all TCP LISTEN sockets on the machine. Snitch parses the `p` (PID), `c` (command name), and `n` (network endpoint) fields from this output.
+
+2. **Enrich with full command info** — the PIDs from step 1 are passed to `/bin/ps -p <pids> -o pid=,comm=,args=`. This gives Snitch the complete command path and arguments for each process, which `lsof` alone does not expose.
+
+3. **Resolve working directories** — a second `lsof` call, `/usr/sbin/lsof -a -d cwd -Fn -p <pids>`, fetches the current working directory (`cwd`) for every listener. Processes whose `cwd` is `/` (system daemons and the like) are **filtered out** entirely, keeping the list focused on user-space services.
+
+4. **Sort** — rows with a real project folder (any `cwd` that is not `/` and not `Unavailable`) float to the top of the list. Within each group, rows are ordered by PID.
+
+## Core features
+
+<CardGroup cols={2}>
+  <Card title="Menu bar badge" icon="rat">
+    The tray title displays `🐀 N` where `N` is the current count of visible
+    listening processes. The count refreshes automatically every **4 seconds**
+    in the background, even when the popup is closed.
+  </Card>
+  <Card title="Process popup" icon="list">
+    Left-clicking the tray icon opens a compact popup that lists every detected
+    listener. Each row shows the folder name, PID, and port(s). The popup
+    auto-refreshes every **2.5 seconds**; a manual refresh button is also
+    available.
+  </Card>
+  <Card title="Open localhost" icon="arrow-up-right-from-square">
+    Clicking any row that has a detectable port opens
+    `http://localhost:<port>` in your default browser via Electron's
+    `shell.openExternal`. The row shows a pointer cursor when a port is
+    available.
+  </Card>
+  <Card title="Kill a process" icon="x">
+    The ✕ button on each row sends `SIGTERM` to the target PID. If that fails
+    for any reason other than the process already being gone, Snitch falls back
+    to `SIGKILL`. The list refreshes automatically after a successful kill.
+  </Card>
+  <Card title="Auto-updates" icon="arrow-rotate-right">
+    When running as a packaged app, Snitch checks GitHub Releases for new
+    versions on startup and every 6 hours. Updates download automatically in
+    the background; you are prompted to restart and install when one is ready.
+  </Card>
+  <Card title="Project-folder priority" icon="folder">
+    Processes with a non-root working directory — i.e., those tied to a real
+    project folder — are always sorted to the top of the list. System-level
+    processes with `cwd` of `/` are hidden entirely.
+  </Card>
+</CardGroup>
+
+## Requirements
+
+- **macOS only.** Snitch is built and tested exclusively on macOS. The prebuilt binary targets **Apple Silicon (ARM64)**; Intel Macs are not covered by the current release.
+- **Gatekeeper.** Because Snitch is not notarised through an Apple Developer account, macOS may block it on first launch. You will need to grant permission manually via **System Settings → Privacy & Security → Open Anyway** (see the [Installation](/installation) page for the full walkthrough).
+- **System utilities.** Snitch shells out to `/usr/sbin/lsof` and `/bin/ps`, both of which are present on every standard macOS installation — no additional dependencies are required.

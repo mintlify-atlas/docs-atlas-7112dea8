@@ -1,0 +1,63 @@
+---
+title: "Open localhost from the Process List"
+sidebarTitle: "Open Localhost"
+description: "Click any port-bearing row in Snitch to open http://localhost:<port> in your default browser — learn which rows are clickable and how URLs are validated."
+---
+
+Clicking a row in the Snitch process list opens `http://localhost:<port>` in your default browser. This lets you jump straight to a running local server without typing its address, making it useful for quickly previewing dev servers, API explorers, or any other locally-bound service.
+
+## Which rows are clickable
+
+A row is only clickable when Snitch can extract a port number from the process's recorded endpoints. If a port is found, the row receives the CSS class `process-item--clickable` and a pointer cursor, and a native tooltip appears showing the URL that will be opened (e.g. `Open http://localhost:3000`).
+
+Rows for which no port can be determined are non-interactive — clicking them has no effect. This can happen if `lsof` reports an endpoint that does not match the expected `*:<port>` format.
+
+## How the URL is opened
+
+Opening a URL involves three layers: the renderer, the preload bridge, and the main process.
+
+<Steps>
+  <Step title="Renderer constructs and requests the URL">
+    When the user clicks a clickable row, the renderer calls the preload bridge with the target URL:
+
+    ```js
+    // Renderer (via preload bridge)
+    await window.snitchApi.openUrl('http://localhost:3000');
+    ```
+
+    The preload bridge exposes this as `openUrl`, which invokes the IPC channel `url:open` in the main process.
+  </Step>
+  <Step title="Main process validates the URL">
+    The main process handler validates the URL with a strict regular expression before doing anything else. Only `http://localhost:<port>` and `https://localhost:<port>` (with an optional trailing slash) are accepted:
+
+    ```js
+    // Main process handler (main.js)
+    ipcMain.handle('url:open', async (_event, url) => {
+      const value = String(url || '').trim();
+      if (!/^https?:\/\/localhost:\d+\/?$/i.test(value)) {
+        throw new Error('Invalid localhost URL');
+      }
+      await shell.openExternal(value);
+      return { ok: true };
+    });
+    ```
+
+    Any URL that does not match — including remote URLs, bare hostnames, or file paths — is rejected with an error before `shell.openExternal` is ever called.
+  </Step>
+  <Step title="macOS opens the URL in the default browser">
+    If validation passes, `shell.openExternal(value)` hands the URL to the macOS URL dispatcher, which opens it in whatever application is registered as the default browser.
+  </Step>
+</Steps>
+
+## Port selection
+
+When a process listens on more than one port, Snitch needs to pick one for the click-to-open URL. The `pickPort` function in the renderer uses the following strategy:
+
+1. Split the row's `ports` string (e.g. `"3000, 3001"`) on commas and return the **first non-empty value**.
+2. If the `ports` string is empty, iterate through the raw `endpoints` array and return the port from the **first endpoint** that matches `:<digits>` at the end of the string.
+
+The selected port is the one used in the `http://localhost:<port>` URL that gets opened.
+
+<Tip>
+  If a process listens on multiple ports and you need to open a specific one, check the **Port** field in the row's metadata — it lists all ports the process is bound to. Copy the port you want and open `http://localhost:<port>` manually in your browser.
+</Tip>

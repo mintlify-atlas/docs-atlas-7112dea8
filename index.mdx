@@ -1,20 +1,56 @@
 ---
-title: "Introduction"
-description: "Welcome to your project"
+title: "Snitch: macOS Menu Bar Process Monitor"
+sidebarTitle: "Home"
+description: "Snitch lives in your macOS menu bar and shows every local listening process by folder, PID, and port. Open localhost or kill services in one click."
 ---
 
-Write a short description of your product here. What it does, who it's for, and what they can accomplish with it.
+Snitch is a tiny macOS menu bar utility built with Electron. It uses `lsof` and `ps` under the hood to discover every TCP process listening on your machine, then surfaces them in a clean popup — sorted so your project folders appear first. From there you can jump straight to `http://localhost:<port>` in your browser or terminate a stuck service without ever opening a terminal.
 
-<Tip>
-  Ready to make this your own? Start by editing this page. Update your `docs.json` file to customize your site. Then fill out the [Quickstart](/quickstart) page.
-</Tip>
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Download the DMG and get Snitch running on your Mac in under a minute.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    First launch walkthrough — understand the menu bar icon and the process list.
+  </Card>
+  <Card title="Process List" icon="list" href="/using-snitch/process-list">
+    Learn how Snitch discovers, filters, and displays listening processes.
+  </Card>
+  <Card title="Kill a Process" icon="skull" href="/using-snitch/kill-process">
+    Stop a stuck service instantly with SIGTERM and SIGKILL fallback.
+  </Card>
+</CardGroup>
 
-<Card title="Quickstart" icon="rocket" href="/quickstart">
-  This card links to the quickstart page in your project.
-</Card>
-<Card title="Components" icon="puzzle-piece" href="https://mintlify.com/docs/components">
-  Add cards, callouts, steps, tabs, and more to design and structure your pages.
-</Card>
-<Card title="Settings" icon="gear" href="https://mintlify.com/docs/organize/settings">
-  Set your site name, branding, and navigation in the `docs.json` file.
-</Card>
+## What Snitch does
+
+<Steps>
+  <Step title="Lives in your menu bar">
+    After launch, Snitch hides from the Dock and shows a `🐀 N` badge in the macOS menu bar — where `N` is the number of processes currently listening on local TCP ports. The count refreshes automatically every 4 seconds.
+  </Step>
+  <Step title="Click to see the popup">
+    A single left-click on the tray icon opens a compact popup listing every listening process with its folder name, PID, and port(s). The list auto-refreshes every 2.5 seconds.
+  </Step>
+  <Step title="Open localhost in one click">
+    Click any row to open `http://localhost:<port>` in your default browser. Rows with a detected port become clickable and show a pointer cursor.
+  </Step>
+  <Step title="Kill stuck services instantly">
+    Hit the ✕ button on any row to send `SIGTERM` to the process. If it doesn't respond, Snitch automatically escalates to `SIGKILL`.
+  </Step>
+</Steps>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Project-folder first" icon="folder-open">
+    Snitch prioritises processes whose working directory is a real project folder, filtering out most system noise.
+  </Card>
+  <Card title="Auto-refresh" icon="rotate">
+    The process list refreshes every 2.5 s in the popup and every 4 s in the tray count — no manual polling needed.
+  </Card>
+  <Card title="Automatic updates" icon="cloud-arrow-down" href="/updates">
+    Snitch checks GitHub Releases in the background and prompts you to restart when a new version is ready.
+  </Card>
+  <Card title="Open source" icon="code-branch" href="https://github.com/maxxdwh/snitch">
+    Built with Electron, fully open source, and easy to run from source for development.
+  </Card>
+</CardGroup>

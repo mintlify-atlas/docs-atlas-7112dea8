@@ -1,0 +1,63 @@
+---
+title: "Kill a Listening Process from Snitch"
+sidebarTitle: "Kill Process"
+description: "Use Snitch's ✕ button to send SIGTERM or SIGKILL to a listening process — learn the signal escalation flow and what happens after a successful kill."
+---
+
+The kill button lets you terminate a stuck or unwanted local service directly from the Snitch popup, without switching to a terminal and looking up the PID. Every row in the process list has a dedicated ✕ button on the right-hand side for exactly this purpose.
+
+## How it works
+
+<Steps>
+  <Step title="Click the ✕ button">
+    Click the ✕ icon on any row. The button immediately disables itself and replaces the ✕ icon with a spinner to indicate that the kill request is in progress. This prevents duplicate kill attempts while the first one is being processed.
+  </Step>
+  <Step title="Main process sends SIGTERM">
+    The renderer calls `window.snitchApi.killProcess(pid)` via the preload bridge, which invokes the `process:kill` IPC handler in the main process. The handler first validates that the PID is a positive integer, then sends `SIGTERM`:
+
+    ```js
+    ipcMain.handle('process:kill', async (_event, pid) => {
+      const targetPid = Number(pid);
+      if (!Number.isInteger(targetPid) || targetPid <= 0) {
+        throw new Error('Invalid PID');
+      }
+      try {
+        process.kill(targetPid, 'SIGTERM');
+        return { ok: true, signal: 'SIGTERM' };
+      } catch (firstError) {
+        if (firstError.code !== 'ESRCH') {
+          try {
+            process.kill(targetPid, 'SIGKILL');
+            return { ok: true, signal: 'SIGKILL' };
+          } catch (secondError) {
+            throw new Error(secondError.message || 'Unable to kill process');
+          }
+        }
+        throw new Error(firstError.message || 'Process not found');
+      }
+    });
+    ```
+  </Step>
+  <Step title="Escalate to SIGKILL if needed">
+    If `SIGTERM` throws an error and the error code is **not** `ESRCH` (process not found), Snitch escalates to `SIGKILL`. `SIGKILL` cannot be caught or ignored by the target process, making it the last resort for processes that do not respond to the polite termination signal.
+
+    If `SIGTERM` throws with the code `ESRCH`, the process no longer exists — Snitch surfaces this as an error rather than attempting `SIGKILL`.
+  </Step>
+</Steps>
+
+## After the kill
+
+Once the kill call resolves successfully:
+
+- The status area below the popup header displays **"Killed PID \<N\>"** so you have a confirmation of what was terminated.
+- The renderer calls `refresh()` immediately to re-fetch the process list, so the terminated process disappears from the list without waiting for the next auto-refresh cycle.
+
+If the kill fails, the ✕ button re-enables itself (reverting the spinner back to the ✕ icon) and an error message appears in the status area describing what went wrong.
+
+<Warning>
+  Snitch kills processes by PID. If the terminated process is managed by a supervisor — such as `launchd`, `pm2`, or another process manager — it may restart automatically and reappear in the list within seconds.
+</Warning>
+
+<Note>
+  Snitch cannot kill processes that require elevated privileges. Attempting to terminate a root-owned process will result in a permission error. For those cases, use `sudo kill <pid>` (or `sudo kill -9 <pid>`) in the terminal.
+</Note>

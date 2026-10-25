@@ -1,47 +1,49 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get started with Snitch"
+sidebarTitle: "Quickstart"
+description: "First launch, reading the tray badge, opening the process popup, launching localhost in a browser, and killing a service — all in under five minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+This page walks through your first Snitch session from launch to your first one-click process kill. If you have not installed the app yet, complete the [Installation](/installation) steps first and then come back here.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
-
-    ```bash
-    npm install your-package
-    ```
+  <Step title="Launch Snitch">
+    Open **Finder → Applications** and double-click **Snitch**. The app vanishes from the Dock immediately — that is expected behaviour. Look at the right-hand side of your menu bar: you should see the `🐀 0` badge (or a non-zero count if processes are already listening). Snitch is now running and polling for new listeners every 4 seconds.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
+  <Step title="Open the process list">
+    **Left-click** the `🐀` icon in the menu bar. A compact popup appears anchored just below the tray icon, listing every local TCP LISTEN process that Snitch found. Each row shows:
+
+    - **Folder name** — the last segment of the process's working directory (e.g. `my-api`), or the command name when no project folder is available.
+    - **PID** — the numeric process identifier.
+    - **Port(s)** — one or more TCP ports the process is bound to.
+
+    The list refreshes automatically every **2.5 seconds**. To trigger an immediate update, click the **refresh button** in the popup header.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
-    ```
+  <Step title="Open localhost in your browser">
+    Click anywhere on a process row (but not the ✕ button) to open `http://localhost:<port>` in your default browser. Rows that have a detectable port show a **pointer cursor** to indicate they are clickable. Rows without a port are informational only and do not respond to clicks.
+  </Step>
+
+  <Step title="Kill a process">
+    Click the **✕ button** on the right side of any row to terminate that process. Snitch first sends `SIGTERM`; if the process does not exit (and the error is not simply that the process is already gone), it follows up with `SIGKILL`. The list refreshes automatically after a successful kill so you can confirm the process is no longer shown.
+  </Step>
+
+  <Step title="Close the popup">
+    Click anywhere **outside** the Snitch popup window, or press **Escape**, to dismiss it. Snitch continues running in the tray — the background poll keeps the badge count up to date even with the popup closed.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Tray menu
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
+Right-clicking (or Control-clicking) the `🐀` icon opens the tray context menu with three options:
+
+| Option | What it does |
+|---|---|
+| **Show Snitch** | Opens the process popup, same as a regular left-click. |
+| **Check for Updates…** | Manually triggers an update check against GitHub Releases. A dialog reports whether a new version was found or the app is already up to date. |
+| **Quit** | Fully exits Snitch and removes it from the menu bar. |
+
+<Tip>
+  Processes tied to a real project folder — anything with a working directory other than `/` — are always sorted to the **top** of the list. System daemons whose `cwd` resolves to `/` are filtered out entirely. If you are running multiple dev servers at once, your project-backed services will always appear first, making it easy to find and manage them during a vibe-coding session.
 </Tip>

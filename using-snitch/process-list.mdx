@@ -1,0 +1,97 @@
+---
+title: "Understanding the Snitch Process List"
+sidebarTitle: "Process List"
+description: "See which processes are listening on TCP ports, how Snitch discovers them with lsof and ps, and how rows are filtered, sorted, and displayed."
+---
+
+Snitch's popup window shows every process on your Mac that is actively listening on a TCP port. Each row identifies the process by its working-directory folder name, PID, and port number, giving you an at-a-glance picture of what is running on your machine without opening a terminal.
+
+## How processes are discovered
+
+Snitch runs three system commands in sequence each time the list is refreshed, combining their output into a unified set of rows.
+
+<Steps>
+  <Step title="Enumerate TCP LISTEN sockets">
+    Snitch calls `lsof -nP -iTCP -sTCP:LISTEN -Fpcn`, which lists every open TCP socket that is in the `LISTEN` state. The machine-readable `-F` output records the PID (`p`), command name (`c`), and network endpoint (`n`) for each socket.
+
+    ```sh
+    /usr/sbin/lsof -nP -iTCP -sTCP:LISTEN -Fpcn
+    ```
+
+    Snitch's own PID (`process.pid`) is filtered out of the resulting map so the app never reports itself.
+  </Step>
+  <Step title="Fetch command names and full arguments">
+    With the PID list in hand, Snitch calls `ps` to get a human-readable command name and the full argument string for each process:
+
+    ```sh
+    /bin/ps -p <pidlist> -o pid=,comm=,args=
+    ```
+
+    The `comm` field supplies a short executable name (e.g. `node`) and `args` contains the full invocation (e.g. `node server.js`). Both are stored on the row and used as fallback display names when the working directory is unavailable.
+  </Step>
+  <Step title="Resolve working directories">
+    A second `lsof` call fetches the current working directory (`cwd`) of every process in the list:
+
+    ```sh
+    /usr/sbin/lsof -a -d cwd -Fn -p <pidlist>
+    ```
+
+    The `-d cwd` flag restricts output to the `cwd` file-descriptor entry. If this call fails for any process (for example, because the process is sandboxed), that process's `cwd` is recorded as `"Unavailable"`.
+  </Step>
+</Steps>
+
+<Note>
+  Snitch only shows TCP LISTEN sockets. UDP sockets and Unix domain sockets are not included in the process list.
+</Note>
+
+## Filtering and sorting
+
+Not every process that `lsof` discovers is shown to the user. Snitch applies two rules before rendering the list.
+
+**Filtering** — The `shouldIncludeRow` function drops any row whose `cwd` is exactly `"/"`. Root-level processes are typically system daemons that are not associated with a project folder and would add noise to the list.
+
+**Sorting** — The remaining rows are sorted by `sortRows`:
+
+1. Processes with a meaningful folder path (a `cwd` that is neither `"/"` nor `"Unavailable"`) are ranked first.
+2. Within each group, rows are ordered by ascending PID.
+
+This ordering puts your active project servers at the top of the list, where you are most likely to need them.
+
+<Info>
+  `"Unavailable"` as a `cwd` value means `lsof` could not read the process's working directory — this is common for sandboxed apps, system services, or processes owned by another user.
+</Info>
+
+## What each row shows
+
+Every row in the process list surfaces four pieces of information:
+
+| Field | Source | Notes |
+|---|---|---|
+| **Folder name** | Last path component of `cwd` | Falls back to `args` then `comm` when `cwd` is `"Unavailable"` |
+| **PID** | Process identifier from `lsof` / `ps` | Displayed as `PID <number>` in the row metadata |
+| **Port(s)** | Extracted from each TCP endpoint string | Comma-separated when a process listens on multiple ports |
+| **Tooltip** | Full `cwd` path | Shown on hover over the folder-name area of the row |
+
+For example, a Node.js server running in `~/projects/my-api` and listening on port `3000` appears as:
+
+```
+my-api
+PID 8421 • Port 3000
+```
+
+Hovering the row title shows the full path `/Users/you/projects/my-api`.
+
+## Refresh behaviour
+
+The process list stays current automatically; you rarely need to intervene.
+
+<CardGroup cols={2}>
+  <Card title="Auto-refresh (renderer)" icon="rotate">
+    The renderer calls `listProcesses()` on a `setInterval` of **2 500 ms** (`2.5 seconds`). Every cycle re-runs all three system commands and re-renders the list.
+  </Card>
+  <Card title="Tray badge poll (main process)" icon="bell">
+    The tray icon count updates on a separate timer set to **`TRAY_POLL_MS = 4 000 ms`** (`4 seconds`) in the main process, keeping the menu bar badge roughly in sync.
+  </Card>
+</CardGroup>
+
+Clicking the **refresh button** in the popup header triggers an immediate call to `listProcesses()` outside the regular timer cycle, useful when you want an instant snapshot after starting or stopping a server.
